@@ -2,69 +2,73 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crate Drop Collective | Claim Slip</title>
+    <title>Crate Drop Collective | Order Slip</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
-<body class="bg-gray-100 p-10" x-data="slipLookup()" x-cloak>
+<body class="bg-gray-100 py-10 px-4" x-data="slipApp()">
 
-    <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg" x-show="!orderData">
-        <h1 class="font-black uppercase mb-4">Verify Order</h1>
-        <input type="text" x-model="refInput" placeholder="Enter Ref No." class="w-full p-3 border rounded mb-3">
-        <button @click="lookupOrder" class="w-full bg-black text-white py-3 rounded">Verify Status</button>
-        <p x-text="errorMsg" class="text-red-500 text-xs mt-2"></p>
-    </div>
-
-    <div class="max-w-2xl mx-auto" x-show="orderData">
-        <div class="mb-4 p-4 rounded text-center font-bold uppercase" 
-             :class="orderData.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'">
-            Status: <span x-text="orderData.status"></span>
+    <div class="max-w-md mx-auto">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border" x-show="!order">
+            <h1 class="font-black text-xl mb-4">Track Order</h1>
+            <input type="text" x-model="input" placeholder="CDC-XXXXXX" class="w-full p-3 bg-gray-100 rounded-lg mb-3">
+            <button @click="fetchOrder" class="w-full bg-black text-white py-3 rounded-lg font-bold">Check Status</button>
+            <p class="text-red-500 text-xs mt-2" x-text="msg"></p>
         </div>
 
-        <div id="receipt-canvas" class="bg-white p-10 border shadow-md">
-            <h2 class="text-2xl font-black">Crate Drop Collective</h2>
-            <p><strong>Customer:</strong> <span x-text="orderData?.fbName"></span></p>
-            <p><strong>Ref:</strong> <span x-text="orderData?.refNum"></span></p>
-            
-            <div class="mt-6 border-t pt-4">
-                <template x-for="item in cartItems" :key="item.name">
-                    <div class="flex justify-between py-1">
-                        <span x-text="item.quantity + 'x ' + item.name"></span>
-                        <span>₱<span x-text="(item.fullPrice * item.quantity).toLocaleString()"></span></span>
-                    </div>
-                </template>
+        <div x-show="order" class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="p-6 text-center text-white" :class="order.status === 'paid' ? 'bg-green-600' : 'bg-amber-500'">
+                <h2 class="font-black text-2xl uppercase" x-text="order.status"></h2>
             </div>
-            
-            <div class="mt-6 font-black text-right">
-                <p>Total DP Paid: ₱<span x-text="orderData?.totalDP?.toLocaleString()"></span></p>
-                <p>Remaining: ₱<span x-text="orderData?.totalBalance?.toLocaleString()"></span></p>
+
+            <div id="capture" class="p-8 space-y-4">
+                <h3 class="font-black border-b pb-2">REF: <span x-text="order.refNum"></span></h3>
+                <p><strong>Customer:</strong> <span x-text="order.fbName"></span></p>
+                <div class="text-sm bg-gray-50 p-4 rounded" x-text="order.cartData"></div>
+                <div class="flex justify-between font-bold pt-4 border-t">
+                    <span>DP Paid:</span> <span>₱<span x-text="order.dp"></span></span>
+                </div>
+                <div class="flex justify-between font-bold text-lg">
+                    <span>Remaining:</span> <span>₱<span x-text="order.balance"></span></span>
+                </div>
+            </div>
+
+            <div class="p-6 bg-gray-50 flex gap-2">
+                <button @click="order = null" class="w-full bg-gray-200 py-2 rounded">Back</button>
+                <button x-show="order.status === 'paid'" @click="download()" class="w-full bg-blue-600 text-white py-2 rounded">Download Receipt</button>
             </div>
         </div>
     </div>
 
     <script>
-        function slipLookup() {
+        function slipApp() {
             return {
-                refInput: '', orderData: null, errorMsg: '', cartItems: [],
-                gasWebAppUrl: 'https://script.google.com/macros/s/AKfycbyVawSFuTLq1j_Xmtf5jN_vDNxl-TtoE_xVnTDx_puRV68bcFVky-brGwoaeOrLEzON_g/exec',
+                input: '', order: null, msg: '',
+                // PASTE YOUR NEW DEPLOYMENT URL HERE
+                url: 'https://script.google.com/macros/s/AKfycbzqTGumZ7RIgi0jZs_ustzJSWjFPBYkh3wVjzQIhIKhMs3lFkPsI5GdaZwYrHwwcDOuaw/exec', 
 
-                async lookupOrder() {
-                    const res = await fetch(`${this.gasWebAppUrl}?ref=${this.refInput.trim().toUpperCase()}`);
-                    const data = await res.json();
+                async fetchOrder() {
+                    this.msg = 'Searching...';
+                    try {
+                        const response = await fetch(`${this.url}?ref=${this.input.trim().toUpperCase()}`);
+                        const data = await response.json();
+                        if (data.found) {
+                            this.order = data;
+                            this.msg = '';
+                        } else {
+                            this.msg = 'Order not found.';
+                        }
+                    } catch (e) { this.msg = 'Network error.'; }
+                },
 
-                    if (data.found) {
-                        // Normalize status to lowercase for comparison
-                        data.status = data.status ? data.status.toString().trim().toLowerCase() : 'pending';
-                        
-                        this.orderData = data;
-                        try {
-                            this.cartItems = JSON.parse(data.cartData);
-                        } catch(e) { console.error("JSON Error"); }
-                    } else {
-                        this.errorMsg = "Not found.";
-                    }
+                download() {
+                    html2canvas(document.querySelector("#capture")).then(canvas => {
+                        const link = document.createElement('a');
+                        link.download = `Receipt-${this.order.refNum}.png`;
+                        link.href = canvas.toDataURL();
+                        link.click();
+                    });
                 }
             }
         }
