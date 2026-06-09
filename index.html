@@ -7,114 +7,39 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        [x-cloak] { display: none !important; }
-    </style>
 </head>
-<body class="bg-gray-100 font-sans text-slate-900 py-12" x-data="slipLookup()" x-cloak>
+<body class="bg-gray-100 p-10" x-data="slipLookup()" x-cloak>
 
-    <div class="max-w-4xl mx-auto px-4 flex flex-col items-center">
-        
-        <div x-show="!orderData" class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm w-full max-w-md">
-            <h1 class="text-xl font-black uppercase tracking-tighter mb-1">Verify Order Status</h1>
-            <p class="text-xs text-gray-500 mb-4">Input your reference number to check payment status and download your receipt.</p>
-            
-            <div class="space-y-3">
-                <input type="text" x-model="refInput" placeholder="e.g., CDC-260609-ABCD" class="w-full p-3 bg-gray-100 border-none rounded-xl text-sm font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500">
-                <button @click="lookupOrder" :disabled="loading" class="w-full bg-slate-900 text-white py-3 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-blue-600 transition-colors disabled:opacity-50">
-                    <span x-show="!loading">Verify Status</span>
-                    <span x-show="loading" class="animate-pulse">Searching Records...</span>
-                </button>
-            </div>
-            <div x-show="errorMsg" x-text="errorMsg" class="mt-3 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold text-center"></div>
+    <div class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg" x-show="!orderData">
+        <h1 class="font-black uppercase mb-4">Verify Order</h1>
+        <input type="text" x-model="refInput" placeholder="Enter Ref No." class="w-full p-3 border rounded mb-3">
+        <button @click="lookupOrder" class="w-full bg-black text-white py-3 rounded">Verify Status</button>
+        <p x-text="errorMsg" class="text-red-500 text-xs mt-2"></p>
+    </div>
+
+    <div class="max-w-2xl mx-auto" x-show="orderData">
+        <div class="mb-4 p-4 rounded text-center font-bold uppercase" 
+             :class="orderData.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'">
+            Status: <span x-text="orderData.status"></span>
         </div>
 
-        <div x-show="orderData && orderData.status !== 'paid'" class="bg-amber-50 border border-amber-200 text-amber-800 p-5 rounded-2xl text-center shadow-sm w-full max-w-md">
-            <i class="fas fa-hourglass-half text-2xl mb-2 text-amber-500 animate-spin"></i>
-            <h3 class="font-black uppercase text-sm tracking-tight">Payment Verification Pending</h3>
-            <p class="text-xs mt-1 text-amber-700 font-medium">Order <span class="font-bold" x-text="orderData?.refNum"></span> is logged. Your receipt will appear here once we mark your bank transfer as cleared.</p>
-            <button @click="reset()" class="mt-4 text-xs font-bold underline text-amber-900">Check another code</button>
-        </div>
-
-        <div x-show="orderData && orderData.status === 'paid'" class="w-full flex flex-col items-center">
+        <div id="receipt-canvas" class="bg-white p-10 border shadow-md">
+            <h2 class="text-2xl font-black">Crate Drop Collective</h2>
+            <p><strong>Customer:</strong> <span x-text="orderData?.fbName"></span></p>
+            <p><strong>Ref:</strong> <span x-text="orderData?.refNum"></span></p>
             
-            <div class="mb-6 flex space-x-3 print:hidden">
-                <button @click="reset()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-colors">
-                    Back
-                </button>
-                <button @click="downloadReceipt()" x-text="isDownloading ? 'Generating Image...' : 'Download Receipt'" :disabled="isDownloading" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider shadow-lg transition-colors flex items-center disabled:opacity-75">
-                </button>
+            <div class="mt-6 border-t pt-4">
+                <template x-for="item in cartItems" :key="item.name">
+                    <div class="flex justify-between py-1">
+                        <span x-text="item.quantity + 'x ' + item.name"></span>
+                        <span>₱<span x-text="(item.fullPrice * item.quantity).toLocaleString()"></span></span>
+                    </div>
+                </template>
             </div>
-
-            <div id="receipt-gate" class="overflow-hidden rounded shadow-2xl">
-                <div id="receipt-canvas" class="bg-white border border-gray-100 flex flex-col" style="width: 850px; min-height: 800px; color: #0f172a;">
-                    <div class="p-10 border-b-2 border-gray-50 relative">
-                        <div class="absolute top-10 right-10 text-xs font-black text-gray-300 uppercase">REF: <span x-text="orderData?.refNum"></span></div>
-                        <div class="flex items-center justify-center space-x-6">
-                            <div class="flex flex-col items-center border-r-2 border-gray-100 pr-8">
-                                <span class="text-4xl font-black tracking-tighter leading-none text-slate-900">CRATE DROP</span>
-                                <span class="block text-[15px] font-bold text-blue-500 tracking-[0.4em] uppercase -mt-1">COLLECTIVE</span>
-                            </div>
-                            <div class="text-left">
-                                <h1 class="text-3xl font-black text-blue-800 italic tracking-tighter uppercase leading-none">Order <br> Confirmation</h1>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-blue-700 text-white px-10 py-3 flex justify-between font-bold text-xs uppercase tracking-widest">
-                        <span>Customer: <span x-text="customerName" class="ml-2 font-black border-b border-white/40"></span></span>
-                        <span>Date: <span x-text="orderDate"></span></span>
-                    </div>
-
-                    <div class="mx-10 mt-8 flex-grow">
-                        <div class="grid grid-cols-12 gap-2 text-blue-800 font-black text-[10px] uppercase border-b-4 border-blue-800 pb-3">
-                            <div class="col-span-1 text-center">Qty.</div>
-                            <div class="col-span-1 text-center">Format</div>
-                            <div class="col-span-4">Product Name</div>
-                            <div class="col-span-2 text-right">Price/Unit</div>
-                            <div class="col-span-2 text-right text-blue-500">DP (30%)</div>
-                            <div class="col-span-2 text-right">Line Total</div>
-                        </div>
-
-                        <template x-for="(item, index) in orderItems" :key="index">
-                            <div class="grid grid-cols-12 gap-2 text-slate-800 font-bold text-[11px] py-4 border-b border-gray-100 items-center">
-                                <div class="col-span-1 font-black text-lg text-center" x-text="item.quantity"></div>
-                                <div class="col-span-1 uppercase text-[8px] text-center text-blue-600 font-black" x-text="item.isCase ? 'CASE' : 'UNIT'"></div>
-                                <div class="col-span-4 uppercase leading-tight">
-                                    <span x-text="item.name"></span>
-                                    <div class="text-[8px] text-gray-400 mt-1 font-bold" x-text="'ETA: ' + item.eta"></div>
-                                </div>
-                                <div class="col-span-2 text-right text-gray-500">₱<span x-text="item.fullPrice.toLocaleString()"></span></div>
-                                <div class="col-span-2 text-right text-blue-600 font-black">₱<span x-text="item.depositPrice.toLocaleString()"></span></div>
-                                <div class="col-span-2 text-right font-black">₱<span x-text="(item.fullPrice * item.quantity).toLocaleString()"></span></div>
-                            </div>
-                        </template>
-                    </div>
-
-                    <div class="mx-10 flex flex-col items-end space-y-4 mt-8">
-                        <div class="w-full max-w-[380px]">
-                            <div class="flex justify-between text-[10px] font-black text-gray-400 uppercase mb-2 px-2">
-                                <span>Total Combined Order:</span>
-                                <span>₱<span x-text="fullOrderTotal.toLocaleString()"></span></span>
-                            </div>
-                            <div class="bg-blue-700 text-white text-center py-2 font-black text-[11px] uppercase tracking-widest">Total Combined DP Paid (30%)</div>
-                            <div class="text-center font-black text-4xl text-slate-900 py-3 border-x border-b border-gray-100 shadow-sm">
-                                ₱<span x-text="totalDP.toLocaleString()"></span>
-                            </div>
-                        </div>
-                        <div class="w-full max-w-[380px] mb-8">
-                            <div class="bg-slate-800 text-white text-center py-1.5 font-black text-[10px] uppercase tracking-widest">Combined Balance Remaining</div>
-                            <div class="text-center font-black text-2xl text-slate-700 py-2 border-x border-b border-gray-100 shadow-sm">
-                                ₱<span x-text="totalBalance.toLocaleString()"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="px-16 py-10 bg-gray-50 border-t border-gray-100 text-[10px] text-gray-400 text-center leading-relaxed font-semibold italic">
-                        By placing a pre-order, you confirm that you have understood the risks of country allocation cuts. Payment for the remaining balance is due within 3 days of allocation confirmation. Cancellations are not allowed, and the 30% deposit is non-refundable.
-                    </div>
-                </div>
+            
+            <div class="mt-6 font-black text-right">
+                <p>Total DP Paid: ₱<span x-text="orderData?.totalDP?.toLocaleString()"></span></p>
+                <p>Remaining: ₱<span x-text="orderData?.totalBalance?.toLocaleString()"></span></p>
             </div>
         </div>
     </div>
@@ -122,96 +47,23 @@
     <script>
         function slipLookup() {
             return {
-                refInput: '',
-                loading: false,
-                isDownloading: false,
-                orderData: null,
-                errorMsg: '',
-                
-                // Parsed Data for the Template
-                customerName: '',
-                orderDate: '',
-                orderItems: [],
-                fullOrderTotal: 0,
-                totalDP: 0,
-                totalBalance: 0,
-
-                gasWebAppUrl: 'https://script.google.com/macros/s/AKfycbzDnDO-aSqo8_wmVYZ9yR02ZYUDI3ORSJKxE3sfGwsaQSTlm4tK0AmIThS--LXyA2qbOg/exec', // <-- YOUR URL HERE
-
-                reset() {
-                    this.orderData = null;
-                    this.refInput = '';
-                    this.errorMsg = '';
-                },
+                refInput: '', orderData: null, errorMsg: '', cartItems: [],
+                gasWebAppUrl: 'https://script.google.com/macros/s/AKfycbxU86svGbohsVjhWnaRN1ntkq3t72SUMBIumJJw_sto1O8HWQlXRw7n4VUHKY8aX0JzNQ/exec',
 
                 async lookupOrder() {
-                    if (!this.refInput.trim()) {
-                        this.errorMsg = "Please input a reference number.";
-                        return;
-                    }
-                    this.loading = true;
-                    this.errorMsg = '';
-                    
-                    try {
-                        const targetUrl = `${this.gasWebAppUrl}?ref=${encodeURIComponent(this.refInput.trim().toUpperCase())}`;
-                        const response = await fetch(targetUrl);
-                        const data = await response.json();
+                    const res = await fetch(`${this.gasWebAppUrl}?ref=${this.refInput.trim().toUpperCase()}`);
+                    const data = await res.json();
 
-                        if (data.found) {
-                            // SANITIZE THE DATA HERE: Convert to lowercase and trim spaces
-                            data.status = data.status ? data.status.toString().trim().toLowerCase() : '';
-                            
-                            this.orderData = data;
-                            this.customerName = data.fbName;
-                            
-                            // Format Date
-                            const d = new Date(data.date);
-                            this.orderDate = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-                            
-                            // Parse the JSON cart data saved in the sheet
-                            if(data.cartData) {
-                                this.orderItems = JSON.parse(data.cartData);
-                                
-                                // Calculate Totals dynamically
-                                this.fullOrderTotal = this.orderItems.reduce((sum, item) => sum + (item.fullPrice * item.quantity), 0);
-                                this.totalDP = this.orderItems.reduce((sum, item) => sum + (item.depositPrice * item.quantity), 0);
-                                this.totalBalance = this.fullOrderTotal - this.totalDP;
-                            }
-                        } else {
-                            this.errorMsg = "Reference code not found. Double-check your spelling.";
-                        }
-                    } catch (err) {
-                        console.error(err);
-                        this.errorMsg = "Network timeout. Try querying it again.";
-                    } finally {
-                        this.loading = false;
-                    }
-                },
-
-                async downloadReceipt() {
-                    this.isDownloading = true;
-                    const element = document.getElementById('receipt-canvas');
-                    
-                    try {
-                        // html2canvas creates an image payload from the DOM element
-                        const canvas = await html2canvas(element, {
-                            scale: 2, // High resolution
-                            useCORS: true,
-                            backgroundColor: "#ffffff"
-                        });
+                    if (data.found) {
+                        // Normalize status to lowercase for comparison
+                        data.status = data.status ? data.status.toString().trim().toLowerCase() : 'pending';
                         
-                        const image = canvas.toDataURL("image/png");
-                        
-                        // Create a fake link to trigger the download
-                        const link = document.createElement('a');
-                        link.download = `CDC-Receipt-${this.orderData.refNum}.png`;
-                        link.href = image;
-                        link.click();
-                    } catch (error) {
-                        console.error("Image generation failed", error);
-                        alert("There was an issue generating the image. Please try taking a screenshot instead.");
-                    } finally {
-                        this.isDownloading = false;
+                        this.orderData = data;
+                        try {
+                            this.cartItems = JSON.parse(data.cartData);
+                        } catch(e) { console.error("JSON Error"); }
+                    } else {
+                        this.errorMsg = "Not found.";
                     }
                 }
             }
