@@ -9,12 +9,12 @@
 </head>
 <body class="bg-gray-100 py-10 px-4" x-data="slipApp()">
 
-    <div class="max-w-md mx-auto">
+    <div class="max-w-xl mx-auto">
         <div class="bg-white p-6 rounded-2xl shadow-sm border" x-show="!order">
-            <h1 class="font-black text-xl mb-4">Track Order</h1>
-            <input type="text" x-model="input" placeholder="CDC-XXXXXX" class="w-full p-3 bg-gray-100 rounded-lg mb-3">
-            <button @click="fetchOrder" class="w-full bg-black text-white py-3 rounded-lg font-bold">Check Status</button>
-            <p class="text-red-500 text-xs mt-2" x-text="msg"></p>
+            <h1 class="font-black text-xl mb-4">Verify Order Status</h1>
+            <input type="text" x-model="input" placeholder="e.g. CDC-260609-ABCD" class="w-full p-3 bg-gray-100 rounded-lg mb-3 uppercase font-bold">
+            <button @click="fetchOrder" class="w-full bg-black text-white py-3 rounded-lg font-bold uppercase tracking-wider text-xs">Verify Status</button>
+            <p class="text-red-500 text-xs mt-2 text-center font-bold" x-text="msg"></p>
         </div>
 
         <div x-show="order" class="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -23,20 +23,39 @@
             </div>
 
             <div id="capture" class="p-8 space-y-4">
-                <h3 class="font-black border-b pb-2">REF: <span x-text="order.refNum"></span></h3>
-                <p><strong>Customer:</strong> <span x-text="order.fbName"></span></p>
-                <div class="text-sm bg-gray-50 p-4 rounded" x-text="order.cartData"></div>
-                <div class="flex justify-between font-bold pt-4 border-t">
-                    <span>DP Paid:</span> <span>₱<span x-text="order.dp"></span></span>
+                <div class="flex justify-between border-b pb-4">
+                    <h3 class="font-black">REF: <span x-text="order.refNum"></span></h3>
+                    <p class="text-sm">Customer: <span class="font-bold" x-text="order.fbName"></span></p>
                 </div>
-                <div class="flex justify-between font-bold text-lg">
-                    <span>Remaining:</span> <span>₱<span x-text="order.balance"></span></span>
+
+                <div class="space-y-4">
+                    <template x-for="item in cartItems" :key="item.name">
+                        <div class="border-b border-gray-100 pb-4">
+                            <div class="flex justify-between font-bold text-sm">
+                                <span x-text="item.quantity + 'x ' + item.name + ' (' + (item.isCase ? 'CASE' : 'UNIT') + ')'"></span>
+                                <span>₱<span x-text="(item.fullPrice * item.quantity).toLocaleString()"></span></span>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-1 uppercase font-bold">
+                                ETA: <span x-text="item.eta"></span> | 
+                                DP (30%): ₱<span x-text="item.depositPrice.toLocaleString()"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <div class="flex justify-between font-black text-sm pt-2">
+                    <span>TOTAL DP PAID:</span> 
+                    <span>₱<span x-text="order.dp.toLocaleString()"></span></span>
+                </div>
+                <div class="flex justify-between font-black text-lg bg-gray-50 p-3 rounded-lg">
+                    <span>REMAINING BALANCE:</span> 
+                    <span>₱<span x-text="order.balance.toLocaleString()"></span></span>
                 </div>
             </div>
 
             <div class="p-6 bg-gray-50 flex gap-2">
-                <button @click="order = null" class="w-full bg-gray-200 py-2 rounded">Back</button>
-                <button x-show="order.status === 'paid'" @click="download()" class="w-full bg-blue-600 text-white py-2 rounded">Download Receipt</button>
+                <button @click="order = null" class="w-full bg-gray-200 py-2 rounded font-bold uppercase text-xs">Back</button>
+                <button x-show="order.status === 'paid'" @click="download()" class="w-full bg-blue-600 text-white py-2 rounded font-bold uppercase text-xs">Download Receipt</button>
             </div>
         </div>
     </div>
@@ -44,9 +63,9 @@
     <script>
         function slipApp() {
             return {
-                input: '', order: null, msg: '',
-                // PASTE YOUR NEW DEPLOYMENT URL HERE
-                url: 'https://script.google.com/macros/s/AKfycbzqTGumZ7RIgi0jZs_ustzJSWjFPBYkh3wVjzQIhIKhMs3lFkPsI5GdaZwYrHwwcDOuaw/exec', 
+                input: '', order: null, msg: '', cartItems: [],
+                // UPDATE THIS URL WITH YOUR DEPLOYED WEB APP URL
+                url: 'YOUR_WEB_APP_URL_HERE', 
 
                 async fetchOrder() {
                     this.msg = 'Searching...';
@@ -55,6 +74,13 @@
                         const data = await response.json();
                         if (data.found) {
                             this.order = data;
+                            // Attempt to parse JSON items from your Order Summary column
+                            try {
+                                this.cartItems = JSON.parse(data.cartData);
+                            } catch(e) {
+                                console.error("Could not parse items", e);
+                                this.cartItems = []; 
+                            }
                             this.msg = '';
                         } else {
                             this.msg = 'Order not found.';
