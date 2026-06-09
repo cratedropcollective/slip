@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crate Drop Collective | Claim Slip</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 font-sans text-slate-900" x-data="slipLookup()">
+
+    <div class="max-w-md mx-auto p-4 pt-12">
+        <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm print:hidden">
+            <h1 class="text-xl font-black uppercase tracking-tighter mb-1">Claim Order Slip</h1>
+            <p class="text-xs text-gray-500 mb-4">Input your reference number to verify payment status and print your official reservation slip.</p>
+            
+            <div class="space-y-3">
+                <input type="text" x-model="refInput" placeholder="e.g., CDC-260609-ABCD" class="w-full p-3 bg-gray-100 border-none rounded-xl text-sm font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500">
+                <button @click="lookupOrder" :disabled="loading" class="w-full bg-slate-900 text-white py-3 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-blue-600 transition-colors disabled:opacity-50">
+                    <span x-show="!loading">Verify Status</span>
+                    <span x-show="loading" class="animate-pulse">Searching Vault...</span>
+                </button>
+            </div>
+
+            <div x-show="errorMsg" x-text="errorMsg" class="mt-3 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold text-center" style="display: none;"></div>
+        </div>
+
+        <div x-show="orderData" class="mt-6" style="display: none;">
+            
+            <template x-if="orderData && orderData.status !== 'Paid'">
+                <div class="bg-amber-50 border border-amber-200 text-amber-800 p-5 rounded-2xl text-center shadow-sm">
+                    <i class="fas fa-hourglass-half text-2xl mb-2 text-amber-500 animate-spin"></i>
+                    <h3 class="font-black uppercase text-sm tracking-tight">Payment Verification Pending</h3>
+                    <p class="text-xs mt-1 text-amber-700 font-medium">We have logged order <span class="font-bold" x-text="orderData.refNum"></span>. Your receipt details will become available here once our team marks your bank transfer/payment receipt as cleared on Messenger.</p>
+                </div>
+            </template>
+
+            <template x-if="orderData && orderData.status === 'Paid'">
+                <div class="bg-white border-2 border-slate-900 rounded-2xl overflow-hidden shadow-xl relative">
+                    <div class="bg-slate-900 p-4 text-white flex justify-between items-center">
+                        <div>
+                            <span class="text-xs font-black tracking-widest text-blue-400 uppercase">OFFICIAL RESERVATION SLIP</span>
+                            <h2 class="text-lg font-black tracking-tighter" x-text="orderData.refNum"></h2>
+                        </div>
+                        <button @click="window.print()" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all print:hidden">
+                            <i class="fas fa-print mr-1"></i> Print
+                        </button>
+                    </div>
+
+                    <div class="p-6 space-y-4">
+                        <div class="flex justify-between items-center text-xs border-b pb-3 border-dashed">
+                            <span class="font-bold uppercase text-gray-400">Issuer</span>
+                            <span class="font-black text-right">CRATE DROP COLLECTIVE</span>
+                        </div>
+
+                        <div>
+                            <span class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Allocated Inventory Items</span>
+                            <pre class="font-sans text-xs font-bold text-slate-800 whitespace-pre-wrap bg-gray-50 p-3 rounded-xl border border-gray-100" x-text="orderData.items"></pre>
+                        </div>
+
+                        <div class="bg-blue-50 rounded-xl p-4 space-y-1.5 border border-blue-100">
+                            <div class="flex justify-between text-xs font-bold text-blue-700">
+                                <span>30% Downpayment Verified:</span>
+                                <span x-text="orderData.deposit"></span>
+                            </div>
+                            <div class="flex justify-between text-xs font-bold text-slate-500">
+                                <span>Est. Remaining Balance:</span>
+                                <span x-text="orderData.balance"></span>
+                            </div>
+                        </div>
+
+                        <div class="text-center pt-2">
+                            <span class="inline-block bg-green-100 text-green-800 font-black text-[10px] tracking-widest uppercase px-3 py-1 rounded-full border border-green-200">
+                                <i class="fas fa-check-circle mr-1"></i> Secured Allocation
+                            </span>
+                            <p class="text-[9px] text-gray-400 italic mt-2 leading-tight">Present this digital slip or printed copy upon physical collection/final fulfillment notification.</p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <script>
+        function slipLookup() {
+            return {
+                refInput: '',
+                loading: false,
+                orderData: null,
+                errorMsg: '',
+                // USE THE SAME WEB APP URL HERE
+                gasWebAppUrl: 'https://script.google.com/macros/s/XXXXX/exec',
+
+                async lookupOrder() {
+                    if (!this.refInput.trim()) {
+                        this.errorMsg = "Please input a reference number.";
+                        return;
+                    }
+                    this.loading = true;
+                    this.errorMsg = '';
+                    this.orderData = null;
+
+                    try {
+                        const targetUrl = `${this.gasWebAppUrl}?ref=${encodeURIComponent(this.refInput.trim().toUpperCase())}`;
+                        const response = await fetch(targetUrl);
+                        const data = await response.json();
+
+                        if (data.found) {
+                            this.orderData = data;
+                        } else {
+                            this.errorMsg = "Reference code not found. Double-check your spelling.";
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        this.errorMsg = "Network timeout. Try querying it again.";
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
