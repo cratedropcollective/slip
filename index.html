@@ -28,20 +28,25 @@
                     <p class="text-sm">Customer: <span class="font-bold" x-text="order.fbName"></span></p>
                 </div>
 
-                <div class="space-y-4">
-                    <template x-for="item in cartItems" :key="item.name">
-                        <div class="border-b border-gray-100 pb-4">
-                            <div class="flex justify-between font-bold text-sm">
-                                <span x-text="item.quantity + 'x ' + item.name + ' (' + (item.isCase ? 'CASE' : 'UNIT') + ')'"></span>
-                                <span>₱<span x-text="(item.fullPrice * item.quantity).toLocaleString()"></span></span>
-                            </div>
-                            <div class="text-[10px] text-gray-500 mt-1 uppercase font-bold">
-                                ETA: <span x-text="item.eta"></span> | 
-                                DP (30%): ₱<span x-text="item.depositPrice.toLocaleString()"></span>
-                            </div>
-                        </div>
-                    </template>
+                <div class="space-y-6"> <template x-for="item in cartItems" :key="item.name">
+        <div class="border-b border-gray-200 pb-4">
+            <div class="flex justify-between items-start">
+                <div class="font-bold">
+                    <span x-text="item.quantity"></span>x <span x-text="item.name"></span>
+                    <span class="text-[10px] bg-gray-200 px-1 rounded uppercase" x-text="item.isCase ? 'CASE' : 'UNIT'"></span>
                 </div>
+                <span class="font-mono">₱<span x-text="(item.fullPrice * item.quantity).toLocaleString()"></span></span>
+            </div>
+            
+            <div class="text-xs text-gray-500 mt-1">
+                ETA: <span x-text="item.eta"></span>
+            </div>
+            <div class="text-xs text-gray-600 font-semibold mt-1">
+                DP (30%): ₱<span x-text="item.depositPrice.toLocaleString()"></span>
+            </div>
+        </div>
+    </template>
+</div>
                 
                 <div class="flex justify-between font-black text-sm pt-2">
                     <span>TOTAL DP PAID:</span> 
@@ -65,7 +70,7 @@
             return {
                 input: '', order: null, msg: '', cartItems: [],
                 // UPDATE THIS URL WITH YOUR DEPLOYED WEB APP URL
-                url: 'YOUR_WEB_APP_URL_HERE', 
+                url: 'https://script.google.com/macros/s/AKfycbzcueiSFik7VJcRvW6nmF5RhDMeoGxsM9ePcETelC46-zlt6QlMO0gm9ozDZB_PFHlJKQ/exec', 
 
                 async fetchOrder() {
                     this.msg = 'Searching...';
